@@ -1,9 +1,6 @@
 import pandas as pd
 from sqlalchemy import create_engine
 
-# initialise with connection
-# queries + string formatting
-
 class queryDB:
     def __init__(self, driver, filename):
         self.engine_string = driver+":///"+filename
@@ -35,8 +32,8 @@ class queryDB:
         #query to exectuyre
         query = """
                 SELECT *
-                FROM daily_stats
-                WHERE country = '{}';
+                  FROM daily_stats
+                 WHERE country = '{}';
                 """.format(country)
 
         # run query
