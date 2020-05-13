@@ -102,7 +102,7 @@ def updateTable(df, table):
     hard update of a table: drop and re-create from the dataframe
     """
     # older data can be updated as well, do drop current table
-    qdb.execute_query("""DROP TABLE IF EXISTS {};""".format(table))
+    qdb.execute_query("""DROP TABLE IF EXISTS {};""".format(table), ret=False)
 
     # load new table
     df.to_sql(table, con = qdb.engine, if_exists = 'append', index=False, chunksize = 1000)
@@ -139,7 +139,7 @@ def createDailyStats(table):
     contains the raw valyes (confirmed, deaths annd recovered) and 7-day MA
     """
     # drop table if exists
-    qdb.execute_query("""DROP TABLE IF EXISTS {};""".format(table))
+    qdb.execute_query("""DROP TABLE IF EXISTS {};""".format(table), ret=False)
 
     # create the table
     qdb.execute_query("""
@@ -177,7 +177,7 @@ def getPopulationData(table = 'population_raw'):
     df = pd.read_csv('../../data/raw/global_pop.csv')
 
     # store in SQL
-    qdb.execute_query('DROP TABLE IF EXISTS {};'.format(table))
+    qdb.execute_query('DROP TABLE IF EXISTS {};'.format(table), ret=False)
     df.to_sql(table, con = qdb.engine, if_exists = 'append', index=False, chunksize = 1000)
 
     # check
@@ -192,12 +192,12 @@ def calculateScaledPopulation(target_table = 'populations', denominator = 100000
     # create the column for the scaled population
     qdb.execute_query("""
         ALTER TABLE populations
-          ADD COLUMN scaled_pop numeric;""".format(target_table))
+          ADD COLUMN scaled_pop numeric;""".format(target_table), ret=False)
 
     # calculate and store the scaled population
     qdb.execute_query("""
         UPDATE {}
-           SET scaled_pop = ROUND(population / {}.0, 2);""".format(target_table, denominator))
+           SET scaled_pop = ROUND(population / {}.0, 2);""".format(target_table, denominator), ret=False)
 
 
 

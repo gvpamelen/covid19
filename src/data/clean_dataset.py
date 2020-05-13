@@ -78,7 +78,7 @@ class cleanData():
         qdb.execute_query("""
             UPDATE {}
                SET country = '{}'
-             WHERE country = '{}';""".format(table, replacement, original))
+             WHERE country = '{}';""".format(table, replacement, original), ret=False)
 
 
 
@@ -90,7 +90,7 @@ class cleanData():
         """
         # clean data in raw table and store it in target table
         if raw_table in qdb.engine.table_names():
-            qdb.execute_query('DROP TABLE IF EXISTS {};'.format(target_table))
+            qdb.execute_query('DROP TABLE IF EXISTS {};'.format(target_table), ret=False)
             qdb.execute_query("""
                 CREATE TABLE {} AS
                 SELECT rank,
@@ -105,12 +105,12 @@ class cleanData():
                        CAST(med_age AS integer) AS med_age,
                        CAST(REPLACE(urban_pop_pct,'%','') AS integer) AS urban_pop_pct,
                        CAST(REPLACE(world_share_pct,'%','') AS numeric) AS world_share_pct
-                  FROM population_raw;""".format(target_table))
+                  FROM population_raw;""".format(target_table), ret=False)
 
             # remove invalid countries or countries without population data from stats table
             qdb.execute_query("""
                 DELETE FROM stats
-                 WHERE country IN ('Diamond Princess','MS Zaandam','Kosovo');""")
+                 WHERE country IN ('Diamond Princess','MS Zaandam','Kosovo');""", ret=False)
 
             assert qdb.execute_query("""
                 SELECT COUNT(*)
@@ -127,7 +127,7 @@ class cleanData():
                 qdb.execute_query("""
                     UPDATE {}
                        SET country = replace(country, char(39), '')
-                     WHERE country LIKE 'C_te%';""".format(table))
+                     WHERE country LIKE 'C_te%';""".format(table), ret=False)
 
                 # update individual countries
                 for key in country_trans[table].keys():
@@ -142,7 +142,7 @@ class cleanData():
                      WHERE populations.rank IS NULL;""").iloc[0,0] == 0 # update
 
             # drop SQL raw
-            qdb.execute_query('DROP TABLE IF EXISTS {};'.format(raw_table))
+            qdb.execute_query('DROP TABLE IF EXISTS {};'.format(raw_table), ret=False)
 
         else:
             print('error: raw data not available')

@@ -10,14 +10,18 @@ class queryDB:
 
 
 
-    def execute_query(self, query, dates = ['date']):
+    def execute_query(self, query, ret = True, dates = ['date']):
         """
         Execute query
         """
         try:
-            res = pd.read_sql(query, con = self.engine, parse_dates = dates)
-            print(str(len(res)) + " rows affected")
-            return res
+            if ret:
+                res = pd.read_sql(query, con = self.engine, parse_dates = dates)
+                print(str(len(res)) + " rows affected")
+                return res
+            else:
+                self.conn.execute(query)
+
         except Exception as e:
             print('unable to execute query')
             print("---")
