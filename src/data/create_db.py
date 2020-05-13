@@ -169,8 +169,42 @@ def createDailyStats(table):
     print('created table: ',table)
 
 
+def getPopulationData(table = 'population_raw'):
+    """
+    Load raw population data into a table
+    """
+    # load
+    df = pd.read_csv('../../data/raw/global_pop.csv')
+
+    # store in SQL
+    qdb.execute_query('DROP TABLE IF EXISTS {};'.format(table))
+    df.to_sql(table, con = qdb.engine, if_exists = 'append', index=False, chunksize = 1000)
+
+    # check
+    assert table in qdb.engine.table_names()
+    assert len(df) == qdb.execute_query('SELECT COUNT(*) FROM {};'.format(table)).iloc[0,0]
+
+
+def calculateScaledPopulation(target_table = 'populations', denominator = 1000000):
+    """
+    Add a scaled population column: population/1,000,000
+    """
+    # create the column for the scaled population
+    qdb.execute_query("""
+        ALTER TABLE populations
+          ADD COLUMN scaled_pop numeric;""".format(target_table))
+
+    # calculate and store the scaled population
+    qdb.execute_query("""
+        UPDATE {}
+           SET scaled_pop = ROUND(population / {}.0, 2);""".format(target_table, denominator))
+
+
+
+
 
 def main():
+    ### 1. core covid data
     # get data from online_source
     ## TODO: refractior getRawData() -- loop!?
     confirmed_raw, death_raw, recovered_raw = getRawData()
@@ -183,11 +217,23 @@ def main():
     # update primary tables
     checkAndUpdate(combined, country_data)
 
-    # create new table
+    # create new table with daily stats
     createDailyStats('daily_stats')
 
     ## TODO: update the backup (raw csv's when needed)
     ## TODO: add some documentation
+
+
+    ### 2. population data
+    # insert raw population table
+    getPopulationData(table = 'population_raw')
+
+    # clean the population table
+    cd.cleanPopulation(raw_table = 'population_raw', target_table = 'populations', country_trans_file = 'clean_country_names.json')
+
+    # calculate the scaled population column
+    calculateScaledPopulation(target_table = 'populations', denominator = 1000000)
+
 
 
 
