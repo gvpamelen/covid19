@@ -200,6 +200,32 @@ def calculateScaledPopulation(target_table = 'populations', denominator = 100000
            SET scaled_pop = ROUND(population / {}.0, 2);""".format(target_table, denominator), ret=False)
 
 
+def createExpTable():
+    """
+    Table for with exponential metric as defined by MinutePhysics
+    with country, date, confirmed cases by date and new cases
+    from last week (7-day moving sum)
+    """
+    # drop table if needed
+    qdb.execute_query("DROP TABLE IF EXISTS exp_stats;", ret=False)
+
+    query = """
+        CREATE TABLE exp_stats AS
+        SELECT total.date,
+               total.country,
+               total_confirmed,
+               new_last_week
+          FROM (SELECT country,
+                       DATE(date) AS date,
+                       confirmed AS total_confirmed
+                  FROM stats ) AS total
+          JOIN (SELECT DATE(date) AS date,
+                       country,
+                       SUM(confirmed) OVER (PARTITION BY country ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS new_last_week
+                  FROM daily_stats ) AS last_week
+            ON last_week.date = total.date AND last_week.country = total.country;"""
+
+    qdb.execute_query(query, ret=False)
 
 
 
@@ -234,6 +260,9 @@ def main():
     # calculate the scaled population column
     calculateScaledPopulation(target_table = 'populations', denominator = 1000000)
 
+
+    ### 3. exponential tables (minutephysics)
+    createExpTable()
 
 
 
