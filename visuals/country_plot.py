@@ -6,7 +6,7 @@ from datetime import date, datetime
 from src.data.query_db import queryDB
 from bokeh.io import curdoc, show, output_file
 from bokeh.plotting import figure
-from bokeh.models import GeoJSONDataSource, LinearColorMapper, ColorBar, HoverTool, Slider, DateSlider, Button
+from bokeh.models import GeoJSONDataSource, ColumnDataSource, NumeralTickFormatter, LinearColorMapper, ColorBar, HoverTool, Slider, DateSlider, Button
 from bokeh.palettes import brewer
 from bokeh.layouts import widgetbox, row, column
 
@@ -49,6 +49,36 @@ def selectDailyData(countries, df, select_date):
     return json_data
 
 
+def getCumulativeStats(scale=1000000.00):
+    query = """
+        SELECT DATE(date) AS date,
+               SUM(confirmed)/{} AS confirmed,
+               SUM(death)/{} AS death,
+               SUM(recovered)/{} AS recovered
+          FROM stats
+         GROUP BY date
+         ORDER BY date DESC;""".format(scale,scale,scale)
+
+    overall = qdb.execute_query(query)
+    return overall
+
+def getDailyStats(scale=1000.00):
+    query = """
+        SELECT
+            date,
+            SUM(confirmed)/{} AS confirmed,
+            SUM(death)/{} AS death,
+            SUM(confirmed_ma)/{} AS confirmed_ma,
+            SUM(death_ma)/{} AS death_ma
+        FROM daily_stats
+        GROUP BY date;""".format(scale,scale,scale,scale)
+
+    daily = qdb.execute_query(query)
+    return daily
+
+
+
+
 ### DATA
 # load countries
 countries = gpd.read_file('../data/processed/countries.geojson')
@@ -57,6 +87,17 @@ countries = gpd.read_file('../data/processed/countries.geojson')
 cases = getCasesByCountry(bins=9)
 cases['date'] = cases['date'].astype(str) # require for JSON conversion
 end_date = cases['date'].max()
+
+# load cumulative data
+overall = getCumulativeStats()
+end_date = str(overall.date.max())[:10]
+first_date = str(overall.date.min())[:10]
+conf_max = (overall['confirmed'].max()//1+1)
+
+# load daily incremental data
+daily = getDailyStats()
+daily_max = (daily['confirmed'].max()//10 +2)*10
+
 
 
 ### callback
@@ -67,6 +108,8 @@ def updateSlider(attr, old, new):
 
     # get data for this new date
     geosource.geojson = selectDailyData(countries, cases, select_date)
+    overall_source.data = overall[overall['date']<=select_date]
+    daily_source.data = daily[daily['date']<=select_date]
 
     # update title
     plot.title.text = 'Covid cases per 1 Million inhabitants on ' + select_date
@@ -128,9 +171,12 @@ hover = HoverTool(tooltips=[('country','@country'),
 
 # create the canvas
 plot = figure(title = 'Covid cases per 1 Million inhabitants on ' + start_date,
-           plot_height = 500, plot_width = 900,
-           x_range = [-181,181], y_range = [-60,90],
-           tools = [hover])
+           plot_height = 500,
+           plot_width = 850,
+           x_range = [-181,181],
+           y_range = [-60,90],
+           tools = [hover],
+           toolbar_location = None)
 
 # plot the geosource
 plot.patches('xs','ys', source = geosource, fill_color = {'field' :'bin', 'transform' : color_mapper},
@@ -141,8 +187,71 @@ plot.xgrid.grid_line_color = None
 plot.ygrid.grid_line_color = None
 plot.axis.visible = False
 
+
+### TOTAL PLOT
+#set source
+overall_source = ColumnDataSource(overall[overall['date']<start_date])
+
+## TODO: make x and y range dynamic to max plot ranges in data
+# create the plot
+total_plot = figure(title = 'Cumulative Global Covid cases (x1 million)',
+                   x_axis_type="datetime",
+                   x_axis_label = 'Date',
+                   x_range = (datetime.strptime(first_date, "%Y-%m-%d"),
+                              datetime.strptime(end_date, "%Y-%m-%d")),
+                   y_range = (0,conf_max),
+                   plot_height = 280,
+                   plot_width = 500,
+                   toolbar_location = None)
+
+total_plot.line(x='date', y='confirmed', line_width=2, source=overall_source, color='red', legend_label='confirmed')
+total_plot.line(x='date', y='death', line_width=2, source=overall_source, color='blue', legend_label = 'death')
+
+total_plot.yaxis.formatter=NumeralTickFormatter(format=",0")
+
+
+total_plot.legend.location = "top_left"
+total_plot.legend.click_policy="hide"
+
+
+### DAILY PLOT
+#set source
+daily_source = ColumnDataSource(daily[daily['date']<start_date])
+
+# use a time-delata for the width
+bar_w = pd.Timedelta(hours = 12)
+
+
+# create the plot
+daily_plot = figure(title = 'Daily incremental Covid cases (x1,000)',
+           x_axis_type="datetime",
+           x_axis_label = 'Date',
+           x_range = (datetime.strptime(first_date, "%Y-%m-%d"),
+                      datetime.strptime(end_date, "%Y-%m-%d")),
+           y_range = (0,daily_max),
+           plot_height = 280,
+           plot_width = 500,
+           toolbar_location = None)
+
+# confirmed cases
+daily_plot.vbar(x='date', width = bar_w, top='confirmed', source=daily_source, color = 'red', alpha = 0.2, legend_label = 'confirmed cases')
+daily_plot.line(x='date', y='confirmed_ma', line_width=2 ,source=daily_source, color='red')
+
+# deaths
+daily_plot.vbar(x='date', width = bar_w, top='death', source=daily_source, color = 'blue', alpha = 0.2, legend_label = 'deaths')
+daily_plot.line(x='date', y='death_ma', line_width=2 ,source=daily_source, color='blue')
+
+daily_plot.y_range.start = 0
+daily_plot.yaxis.formatter=NumeralTickFormatter(format=",00")
+daily_plot.legend.location = "top_left"
+
+
+
+
+
 # doc
-layout = column(plot, row(date_slider, button, sizing_mode='scale_width'))
+layout = row(column(plot, row(date_slider, button, sizing_mode='scale_width')),
+             column(total_plot, daily_plot))
 
 curdoc().add_root(layout)
 curdoc().title = 'Covid-19'
