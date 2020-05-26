@@ -82,6 +82,7 @@ def getPlotDataSource(sample_exp, dt = '2020-05-20'):
             'color' : [(Category10[n_countries])[i] for i in range(len(countries))],
             'country' : countries}
 
+    # color array is consistent...
     return data
 
 
@@ -89,8 +90,8 @@ def getPlotDataSource(sample_exp, dt = '2020-05-20'):
 countries = ['Netherlands', 'Italy', 'Malaysia', 'China', 'United States', 'Brazil']
 exp_data = getExpData(countries)
 n_countries = len(countries)
-end_date = str(exp_data.date.max())[:10] #exp_data['date'].max()
-
+end_date = str(exp_data.date.max())[:10]
+start_date = min(str(exp_data['date'].min())[:10], start_date)  #overwrite to first date in set
 
 ### callback will come here
 def updateSlider(attr, old, new):
@@ -107,8 +108,8 @@ def updateSlider(attr, old, new):
 
 # date-slider
 slider_end = datetime.strptime(end_date, "%Y-%m-%d")
-date_slider = DateSlider(title = "Date: ", start = date(2020, 2, 1),
-                         end = slider_end, value = date(2020, 2, 1),
+date_slider = DateSlider(title = "Date: ", start = datetime.strptime(start_date, '%Y-%m-%d'),
+                         end = slider_end, value = datetime.strptime(start_date, '%Y-%m-%d'),
                          step=1)
 date_slider.on_change('value', updateSlider)
 
@@ -118,7 +119,7 @@ def animate_update():
     dt = date_slider.value + (3600*24*1000) #1 day in seconds
     dt_formatted = datetime.fromtimestamp(dt/1000).strftime("%Y-%m-%d")
     if dt_formatted > slider_end.strftime("%Y-%m-%d"):
-        dt_formatted = date(2020, 2, 1).strftime("%Y-%m-%d")
+        dt_formatted = start_date
     date_slider.value = datetime.strptime(dt_formatted, "%Y-%m-%d")
 
 # run the animation
@@ -135,8 +136,6 @@ def animate():
 # create a button
 button = Button(label='► Play', width=60)
 button.on_click(animate)
-
-
 
 
 

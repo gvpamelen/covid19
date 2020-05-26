@@ -71,27 +71,10 @@ def updateSlider(attr, old, new):
     # update title
     plot.title.text = 'Covid cases per 1 Million inhabitants on ' + select_date
 
-
-### PLOT
-# ColumnDataSource
-geosource = GeoJSONDataSource(geojson = selectDailyData(countries, cases, start_date))
-
-# set the colorscheme
-palette = brewer['Reds'][9]
-palette = palette[::-1]
-color_mapper = LinearColorMapper(palette = palette, low = 1, high = 9,
-                                 nan_color = '#d9d9d9')
-
-#Create color bar.
-color_bar = ColorBar(color_mapper=color_mapper, label_standoff=8,width = 500,
-                        height = 20, border_line_color=None, location = (0,0),
-             orientation = 'horizontal')
-
-
 # date-slider
 slider_end = datetime.strptime(end_date, "%Y-%m-%d")
-date_slider = DateSlider(title = "Date: ", start = date(2020, 3, 1),
-                         end = slider_end, value = date(2020, 3, 1),
+date_slider = DateSlider(title = "Date: ", start = datetime.strptime(start_date, '%Y-%m-%d'),
+                         end = slider_end, value = datetime.strptime(start_date, '%Y-%m-%d'),
                          step=1)
 date_slider.on_change('value', updateSlider)
 
@@ -101,7 +84,7 @@ def animate_update():
     dt = date_slider.value + (3600*24*1000) #1 day in seconds
     dt_formatted = datetime.fromtimestamp(dt/1000).strftime("%Y-%m-%d")
     if dt_formatted > slider_end.strftime("%Y-%m-%d"):
-        dt_formatted = date(2020, 3, 1).strftime("%Y-%m-%d")
+        dt_formatted = start_date #date(2020, 3, 1).strftime("%Y-%m-%d")
     date_slider.value = datetime.strptime(dt_formatted, "%Y-%m-%d")
 
 # run the animation
@@ -121,6 +104,22 @@ button.on_click(animate)
 
 
 
+
+
+### PLOT
+# ColumnDataSource
+geosource = GeoJSONDataSource(geojson = selectDailyData(countries, cases, start_date))
+
+# set the colorscheme
+palette = brewer['Reds'][9]
+palette = palette[::-1]
+color_mapper = LinearColorMapper(palette = palette, low = 1, high = 9,
+                                 nan_color = '#d9d9d9')
+
+#Create color bar.
+color_bar = ColorBar(color_mapper=color_mapper, label_standoff=8,width = 500,
+                        height = 20, border_line_color=None, location = (0,0),
+             orientation = 'horizontal')
 
 # tooltips
 hover = HoverTool(tooltips=[('country','@country'),
