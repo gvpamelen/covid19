@@ -5,10 +5,8 @@ from src.data.query_db import queryDB
 from bokeh.io import curdoc, show, output_file
 from bokeh.plotting import figure
 from bokeh.models import ColumnDataSource, LinearColorMapper, ColorBar, HoverTool, Slider, DateSlider, Button, NumeralTickFormatter, FactorRange
-from bokeh.palettes import Category10
 from bokeh.layouts import widgetbox, row, column
-
-
+from bokeh.palettes import Category10
 
 # initialise
 qdb = queryDB('sqlite','../data/processed/covid.sqlite')
@@ -36,6 +34,28 @@ def getBarData(n=10):
             """.format(n)
 
     return qdb.execute_query(query)
+
+
+def getContinentData():
+    query = """
+        SELECT
+            date,
+            continent,
+            SUM(confirmed) AS confirmed
+        FROM stats
+        JOIN populations
+            ON stats.country = populations.country
+        WHERE continent != 'Seven seas (open ocean)'
+        GROUP BY
+            date,
+            continent
+        ORDER BY
+            date,
+            SUM(confirmed) DESC
+        """
+
+    continent = qdb.execute_query(query)
+    return continent
 
 
 def createColorMapping(countries):
@@ -73,6 +93,7 @@ def updateColorMapping(coutry_color_mapping, new_countries):
 # get the main dataset
 bar_data = getBarData()
 end_date = str(bar_data.date.max())[:10]
+continent = getContinentData()
 
 # create the source
 initial_data = bar_data[bar_data['date'] == start_date].sort_values('rnk')
@@ -101,9 +122,11 @@ def updateSlider(attr, old, new, country_color_mapping = country_color_mapping):
         source.data['color'] = [country_color_mapping.get(key) for key in new_countries]
 
     # update title
-    p.title.text = 'Top 10 countries with most COVID-19 cases on ' + select_date
-    p.y_range.factors = list(source.data['country'][::-1])
+    rc.title.text = 'Top 10 countries with most COVID-19 cases on ' + select_date
+    rc.y_range.factors = list(source.data['country'][::-1])
 
+    cont_source.data = continent[continent['date'] == select_date]
+    cont_bars.title.text = 'Confirmed cases per continent on ' + select_date
 
 
 # date-slider
@@ -139,30 +162,44 @@ button.on_click(animate)
 
 
 
-#### PLOT
+#### RACE CHART
 source = ColumnDataSource(data = initial_data)
 source.data['color'] = [country_color_mapping.get(key) for key in initial_countries]
 
 # setup
-p = figure(title = 'Top 10 countries with most COVID-19 cases on ' + start_date,
+rc = figure(title = 'Top 10 countries with most COVID-19 cases on ' + start_date,
            y_range = FactorRange(factors = source.data['country'][::-1]),
-           plot_height=350,
+           plot_height=300,
            toolbar_location=None,
            tools="")
 
 
 # plot
-p.hbar(y='country', right='confirmed',
+rc.hbar(y='country', right='confirmed',
         fill_color = 'color', line_color = None, source = source, height=0.8)
 
 # formatting
-p.xaxis.formatter=NumeralTickFormatter(format=",00")
-p.ygrid.grid_line_color = None
-p.x_range.start = 0
+rc.xaxis.formatter=NumeralTickFormatter(format=",00")
+rc.ygrid.grid_line_color = None
+rc.x_range.start = 0
+
+
+#### CONTINENT CHART
+cont_data = continent[continent['date'] == start_date]
+cont_source = ColumnDataSource(cont_data)
+cont_bars = figure(title = 'Confirmed cases per continent on ' + start_date,
+                   y_range=np.sort(continent['continent'].unique()),
+                   plot_height=300, toolbar_location=None, tools="")
+
+cont_bars.hbar(y = 'continent', right = 'confirmed', source = cont_source, height=0.8)
+cont_bars.ygrid.grid_line_color = None
+cont_bars.x_range.start = 0
+cont_bars.xaxis.formatter=NumeralTickFormatter(format=",00")
+
 
 
 ### add layout here
-layout = column(p, row(date_slider, button, sizing_mode='scale_width'))
+layout = column(rc, cont_bars, row(date_slider, button, sizing_mode='scale_width'))
 
 # output
 curdoc().add_root(layout)
