@@ -205,7 +205,7 @@ def updateSlider(attr, old, new, country_color_mapping = country_color_mapping):
     cont_bars.title.text = 'Confirmed cases per continent on ' + select_date
 
     # update exp_plot
-
+    p_exp.title.text = 'Covid exponential growth assessment on ' + select_date
 
 
 
@@ -231,7 +231,7 @@ def animate():
     if button.label == '► Play':
         button.label = '❚❚ Pause'
         # second parameter is the step-time in ms
-        callback_id = curdoc().add_periodic_callback(animate_update, 300)
+        callback_id = curdoc().add_periodic_callback(animate_update, 500)
     else:
         button.label = '► Play'
         curdoc().remove_periodic_callback(callback_id)
@@ -323,9 +323,8 @@ p_exp.yaxis.major_label_overrides = y_set
 
 
 ### add layout here
-#layout = column(rc, cont_bars, row(date_slider, button, sizing_mode='scale_width'))
 layout = row(column(rc, cont_bars),
-             column(p_exp,row(date_slider, button, sizing_mode='scale_width')))
+             column(row(date_slider, button, sizing_mode='scale_width'),p_exp))
 # output
 curdoc().add_root(layout)
 curdoc().title = 'Covid-19'
