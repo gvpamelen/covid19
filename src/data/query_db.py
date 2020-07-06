@@ -9,7 +9,6 @@ class queryDB:
         print(self.engine_string)
 
 
-
     def execute_query(self, query, ret = True, dates = ['date']):
         """
         Execute query
