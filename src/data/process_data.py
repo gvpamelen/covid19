@@ -109,9 +109,6 @@ def update_db():
 
     Returns: None (update db)
     """
-    # connect to db - can we do this this way!?
-    from src.data.quick_queries import queryDB
-    qdb = queryDB('sqlite','../data/processed/covid_db.sqlite')
 
     #download new data
     new_df = download_data()
