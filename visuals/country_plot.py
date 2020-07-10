@@ -190,7 +190,7 @@ plot.axis.visible = False
 
 ### TOTAL PLOT
 #set source
-overall_source = ColumnDataSource(overall[overall['date']<start_date])
+overall_source = ColumnDataSource(overall[overall['date'] < start_date])
 
 ## TODO: make x and y range dynamic to max plot ranges in data
 # create the plot
