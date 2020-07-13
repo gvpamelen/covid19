@@ -85,3 +85,62 @@ def prep_geojson(df, date):
     #Convert to String like object.
     json_data = json.dumps(merged_json)
     return json_data
+
+
+def prep_exp_plot(df, main_alpha = 1.0, non_selection_alpha = 0.2):
+    """
+    Convert string_agg object to an array of ints and add an alpha Column
+    for plotting bases in wether or not a country is in top-10 most cases
+
+    Parameters:
+    df (pandas dataframe): base dataframe for exponential plot
+                           (output of qdb.get_exp_data)
+    main_alpha (float): base alpha value in plot (default = 1)
+    non_selection_alpha (float): alpha for values not in top-10 (default = 0.2)
+
+    Returns:
+    df (pandas dataframe)
+    """
+    # add alpha
+    df['alpha'] = (df['conf_rnk'] <= 10) * (main_alpha - non_selection_alpha) + non_selection_alpha
+
+    # apply function to row of pandas df
+    df['confirmed'] = df['confirmed'].apply(lambda x: np.array(x.split(',')).astype(int))
+    df['new_last_week'] = df['new_last_week'].apply(lambda x: np.array(x.split(',')).astype(int))
+
+    return df
+
+
+def setAxes(exp):
+    """
+    Create ticks & ticklabels for the double-log growth plot
+
+    Parameters:
+    exp: pandas dataframe containing at least the columns `confirmedmax`
+         and `new_last_weekmax`
+
+    Returns:
+    x_set: dictionary of tick locations & tick labels for the x-axis
+    y_set: dictionary of tick locations & tick labels for the x-axis
+    x_max: maximum x-position (log)
+    y_max: maximum y-position (log)
+    """
+    # find the range required
+    x_max = np.ceil(np.log10(exp.confirmedmax.max()))
+    y_max = np.ceil(np.log10(exp.new_last_weekmax.max()))
+
+    # generate locations
+    x_locs_raw = 10**np.arange(0,x_max+1,1)
+    x_locs = [int(i) for i in x_locs_raw]
+    y_locs_raw = 10**np.arange(0,y_max+1,1)
+    y_locs = [int(i) for i in y_locs_raw]
+
+    # generate labels
+    x_labels = ['{:,.0f}'.format(v) for v in x_locs]
+    y_labels = ['{:,.0f}'.format(v) for v in y_locs]
+
+    # get required format
+    x_set = dict(zip(x_locs, x_labels))
+    y_set = dict(zip(y_locs, y_labels))
+
+    return x_set, y_set, x_max, y_max

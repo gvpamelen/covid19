@@ -96,5 +96,80 @@ class queryDB:
                 WINDOW ma7 AS (PARTITION BY country ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)
                 ORDER BY date, country
                 """.format('2020-02-01','2020-02-01')
-
         return self.output_query(query) # not required to reformat date
+
+
+    def get_top10_countries(self):
+        query = """
+                SELECT date,
+                       continent,
+                       stats.country,
+                       confirmed,
+                       ROW_NUMBER() OVER (PARTITION BY date ORDER BY confirmed DESC, stats.country) AS conf_rnk,
+                       deaths,
+                       recovered,
+                       SUM(confirmed) OVER continent_totals AS confirmed_continent,
+                       SUM(deaths) OVER continent_totals AS deaths_continent,
+                       SUM(recovered) OVER continent_totals AS recovered_continent,
+                       ROW_NUMBER() OVER (PARTITION BY date, continent ORDER BY stats.country) AS plot_continent
+                  FROM stats
+                       JOIN populations
+                         ON stats.country = populations.country
+                 WHERE date >= '2020-02-01'
+                 WINDOW continent_totals AS (PARTITION BY date, continent)
+                 ORDER BY date, conf_rnk""" # dynamic start-date!?
+        return self.output_query(query)
+
+
+    def get_exp_data(self):
+        query = """
+                /* main data: confirmed & daily new. optional: got to weekly
+                data, i.e. each Sunday when this becomes to granular */
+                WITH exp_data AS (
+                    SELECT continent,
+                           stats.country,
+                           date,
+                           confirmed,
+                           confirmed - LAG(confirmed) OVER (PARTITION BY stats.country ORDER BY date) AS daily_new,
+                           ROW_NUMBER() OVER (PARTITION BY date ORDER BY confirmed DESC, stats.country) AS conf_rnk
+                      FROM stats
+                           JOIN populations
+                             ON stats.country = populations.country),
+
+                /* cut to relevant dates, get new cases last week
+                and the minimum rank a country has ever had (has it ever
+                been top-10) for later selection */
+                relevant_data AS (
+                    SELECT continent,
+                           country,
+                           date,
+                           confirmed,
+                           SUM(daily_new) OVER (PARTITION BY country ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS new_last_week,
+                           conf_rnk,
+                           MIN(conf_rnk) OVER (PARTITION BY country ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS min_rnk
+                      FROM exp_data
+                     WHERE date >= '2020-01-25')
+
+               /* for multiline in bokeh we need all points per country.
+               for quick plotting, we're pre-processing this by day (all points
+               up till that date) in a string_agg (ideally would be array_agg)*/
+                SELECT today.continent,
+                       today.country,
+                       today.date,
+                       MIN(today.conf_rnk) AS conf_rnk,
+                       MIN(today.min_rnk) AS min_rnk,
+                       group_concat(past.confirmed) AS confirmed,
+                       MAX(past.confirmed) AS confirmedmax,
+                       group_concat(past.new_last_week) AS new_last_week,
+                       MAX(past.new_last_week) AS new_last_weekmax
+                  FROM relevant_data AS today
+                       JOIN relevant_data AS past
+                         ON today.date >= past.date
+                         AND today.country = past.country
+                 WHERE today.min_rnk <= 10
+                 GROUP BY today.continent,
+                          today.country,
+                          today.date
+                 ORDER BY today.country,
+                          today.date"""
+        return self.output_query(query)
