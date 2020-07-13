@@ -109,32 +109,38 @@ def update_db():
 
     Returns: None (update db)
     """
+    try:
+        #download new data
+        new_df = download_data()
 
-    #download new data
-    new_df = download_data()
+        #check what data is to be added
+        last_date = qdb.output_query("SELECT MAX(date) FROM stats").iloc[0][0]
+        if new_df['date'].max() > last_date:
 
-    #check what data is to be added
-    last_date = qdb.output_query("SELECT MAX(date) FROM stats").iloc[0][0]
-    if new_df['date'].max() > last_date:
+            # select new data and update table
+            update_df = new_df[new_df['date'] > last_date]
+            update_df.to_sql('stats', con = qdb.engine, if_exists = 'append', index=False, chunksize = 1000)
 
-        # select new data and update table
-        update_df = new_df[new_df['date'] > last_date]
-        update_df.to_sql('stats', con = qdb.engine, if_exists = 'append', index=False, chunksize = 1000)
+            #check
+            query = """
+            SELECT date,
+                   COUNT(*) AS countries
+              FROM stats
+             GROUP BY date
+             ORDER BY date DESC
+             LIMIT 5;
+            """
+            last_day_check = qdb.output_query(query)
+            assert last_day_check['date'].max() == update_df['date'].max()
+            assert last_day_check['countries'].to_list() == [185, 185, 185, 185, 185]
 
-        #check
-        query = """
-        SELECT date,
-               COUNT(*) AS countries
-          FROM stats
-         GROUP BY date
-         ORDER BY date DESC
-         LIMIT 5;
-        """
-        last_day_check = qdb.output_query(query)
-        assert last_day_check['date'].max() == update_df['date'].max()
-        assert last_day_check['countries'].to_list() == [185, 185, 185, 185, 185]
+            print('COVID data up-to-date till ' + last_day_check['date'].max())
 
-        print('COVID data up-to-date till ' + last_day_check['date'].max())
+        else:
+            print('COVID data up-to-date till ' + last_date)
 
-    else:
-        print('COVID data up-to-date till ' + last_date)
+    except Exception as e:
+        print('unable to update db')
+        print("---")
+        print(str(e))
+        print("---")
