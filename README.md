@@ -13,7 +13,7 @@ Recommended setup
 ------------
 To get the best experience viewing the jupyter notebooks, we advice to use jupyterlabs, with the *table-of-contents* (toc) extension. 
 
-An example of our setup can be seen below.
+A demo of the dashboard in action can be seen below.
 
 ![](covid_dashboard.gif)
 
