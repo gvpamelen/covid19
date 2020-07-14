@@ -1,7 +1,19 @@
 covid19
 ==============================
 
-Dashboard to monitor spread Covid 19 virus
+**Objective:** Dashboard to visualise the global spread of the Covid-19 virus. 
+
+**General process:** To generate the dashboard, data is gathered from [Johns Hopkins Univerity](https://github.com/CSSEGISandData/COVID-19), supplemented with [demographic](https://www.worldometers.info/world-population/population-by-country/) and [geographic](www.naturalearthdata.com) data. This data is cleaned, stored in a SQLite database after which we extract it and apply pre-processing for it to be displayed in a Bokeh dashboard in an efficient manner.   
+
+To run the dashboard, run `bokeh serve main_dashboard.py`. The underlying Covid data is automatically updated.
+
+See below for a quick overview of the current dashboard.
+
+Recommended setup
+------------
+To get the best experience viewing the jupyter notebooks, we advice to use jupyterlabs, with the *table-of-contents* (toc) extension. 
+
+An example of our setup can be seen in ....
 
 Project Organization
 ------------
